@@ -95,6 +95,8 @@ struct ContentView: View {
                 message = error
             } else if results.isEmpty {
                 message = "No songs found"
+            } else {
+                message = ""
             }
             self.results = results
         }
