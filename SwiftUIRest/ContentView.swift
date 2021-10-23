@@ -10,9 +10,27 @@ struct Result: Codable {
     var collectionName: String
 }
 
-func getJson(from url: String, cb: @escaping ([Result]) -> Void) {
+/*
+ func alert(title: String, error: Error) {
+ let alert = UIAlertController(
+ title: title,
+ message: error.localizedDescription,
+ preferredStyle: .alert
+ )
+ 
+ alert.addAction(UIAlertAction(
+ title: "Dismiss",
+ style: .default
+ ))
+ 
+ present(alert, animated: true)
+ }
+ */
+
+//TODO: What is a better way to handle errors?
+func getJson(from url: String, callback: @escaping ([Result], String?) -> Void) {
     guard let urlObject = URL(string: url) else {
-        print("invalid URL")
+        callback([], "invalid URL")
         return
     }
     
@@ -24,20 +42,19 @@ func getJson(from url: String, cb: @escaping ([Result]) -> Void) {
                     let results = decoded.results.sorted {
                         $0.trackName < $1.trackName
                     }
-                    cb(results)
+                    callback(results, nil)
                 }
                 return
             }
         }
         
-        print("Fetch failed: \(error?.localizedDescription ?? "unknown error")")
+        callback([], error?.localizedDescription ?? "unknown error")
     }.resume()
-    
 }
 
 struct ContentView: View {
-    //@State var artist = "Radiohead"
-    @State var artist = "Taylor Swift"
+    @State var artist = "Radiohead"
+    @State var message = ""
     @State var results = [Result]() // creates an empty array
     
     var body: some View {
@@ -46,21 +63,41 @@ struct ContentView: View {
                 .autocapitalization(.none)
                 .padding()
                 .textFieldStyle(.roundedBorder)
-            Button("Search", action: loadData)
+            Button("Search", action: getSongs).disabled(artist.isEmpty)
+            if !message.isEmpty {
+                //TODO: How can you display this in a modal instead?
+                Text(message).foregroundColor(.red).padding()
+            }
             List(results, id: \.trackId) { item in
                 VStack(alignment: .leading) {
                     Text(item.trackName).font(.headline)
                     Text(item.collectionName)
                 }
             }
-            //}.onAppear(perform: loadData)
+            //}.onAppear(perform: getSongs)
         }
+        //.alert(item: error) { error in
+        //    Alert(title: Text("Error"), message: Text(error), dismissButton: .cancel())
+        //}
     }
     
-    func loadData() {
+    func getSongs() {
+        if artist.isEmpty {
+            message = "Enter an artist name."
+            results = []
+            return
+        }
+        
         let term = artist.lowercased().replacingOccurrences(of: " ", with: "+")
         let url = "https://itunes.apple.com/search?term=\(term)&entity=song"
-        getJson(from: url) { results in self.results = results }
+        getJson(from: url) { results, error in
+            if let error = error {
+                message = error
+            } else if results.isEmpty {
+                message = "No songs found"
+            }
+            self.results = results
+        }
     }
 }
 
